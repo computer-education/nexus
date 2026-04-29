@@ -1,35 +1,49 @@
 <script lang="ts">
 	import { supabase } from '$lib/supabase';
 
-	const { session } = $props();
+	// SVELTE 5: Menerima props 'session' dan 'role' dari layout
+	let { session = null, role = 'guest' } = $props();
 
-	const handleLogOut = async () => {
+	const handleLogout = async () => {
 		await supabase.auth.signOut();
-		window.location.href = '/';
+		window.location.href = '/login';
 	};
 </script>
 
 <header class="sticky top-0 z-50 border-b-2 border-emerald-500 bg-white shadow-sm">
 	<div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-		<div class="flex items-center gap-2">
-			<div
-				class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 font-bold text-white"
-			>
-				C
-			</div>
+		<a href="/" class="flex items-center gap-2 transition-opacity hover:opacity-80">
 			<span class="text-xl font-bold tracking-tight text-gray-800">
-				UKM <span class="text-emerald-600">Computer Education</span>
+				Nexus <span class="text-emerald-600">CE</span>
 			</span>
-		</div>
+		</a>
 
-		<nav class="flex items-center gap-4">
+		<nav class="flex items-center gap-6">
 			{#if session}
-				<span class="hidden text-sm text-gray-600 sm:inline">
-					Halo, <span class="font-semibold">{session.user.user_metadata.full_name}</span>
-				</span>
+				<a href="/" class="text-sm font-medium text-gray-600 hover:text-emerald-600">Beranda</a>
+				<a href="/events" class="text-sm font-medium text-gray-600 hover:text-emerald-600"
+					>Kegiatan</a
+				>
+
+				{#if role === 'anggota_biasa' || role === 'pengurus'}
+					<a href="/kepanitiaan" class="text-sm font-medium text-gray-600 hover:text-emerald-600"
+						>Kepanitiaan</a
+					>
+				{/if}
+
+				{#if role === 'pengurus'}
+					<a
+						href="/admin/members"
+						class="rounded-md bg-amber-50 px-3 py-1 text-sm font-bold text-amber-600 hover:text-amber-700"
+					>
+						Admin Panel
+					</a>
+				{/if}
+
+				<div class="mx-2 h-5 w-px bg-gray-300"></div>
 				<button
-					onclick={handleLogOut}
-					class="rounded-md bg-red-500 px-5 py-2 text-sm font-medium transition-colors hover:bg-red-700"
+					onclick={handleLogout}
+					class="text-sm font-medium text-red-500 transition-colors hover:text-red-700"
 				>
 					Keluar
 				</button>

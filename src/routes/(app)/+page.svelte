@@ -1,132 +1,141 @@
 <script lang="ts">
-	import { supabase } from '$lib/supabase';
-	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	let { data } = $props();
 
-	let user = $state<any>(null);
-	let profile = $state<any>(null);
-	let events = $state<any[]>([]);
-	let loading = $state(true);
-
-	onMount(async () => {
-		const {
-			data: { user: authUser }
-		} = await supabase.auth.getUser();
-
-		if (!authUser) {
-			goto('/login');
-			return;
-		}
-		user = authUser;
-
-		// Ambil profil
-		const { data: profileData } = await supabase
-			.from('profiles')
-			.select('*')
-			.eq('id', user.id)
-			.single();
-		profile = profileData;
-
-		// Ambil daftar event kajian yang akan datang
-		const { data: eventData } = await supabase
-			.from('events')
-			.select('*')
-			.order('date_time', { ascending: true }); // Urutkan dari yang terdekat
-
-		if (eventData) events = eventData;
-		loading = false;
-	});
-
-	const daftarAcara = async (eventId: string) => {
-		// Insert ke tabel event_registrations
-		const { error } = await supabase.from('event_registrations').insert({
-			event_id: eventId,
-			user_id: user.id
-		});
-
-		if (error) {
-			// Karena kita pakai constraint UNIQUE di database, kalau error biasanya karena udah daftar
-			if (error.code === '23505') {
-				alert('Kamu sudah terdaftar di acara ini!');
-			} else {
-				alert('Gagal mendaftar: ' + error.message);
-			}
-		} else {
-			alert('Berhasil mendaftar! Jangan lupa hadir ya.');
-		}
-	};
+	// Gunakan $derived agar selalu update secara reaktif
+	let profile = $derived(data.profile);
+	let events = $derived(data.upcomingEvents);
+	let myRegisteredIds = $derived(data.myRegisteredIds ?? []);
 </script>
 
-{#if !loading}
-	<div class="mt-10">
-		<div class="mb-6 flex items-center justify-between">
-			<h2 class="text-2xl font-bold text-gray-800">Kajian & Kegiatan Mendatang</h2>
-			{#if profile?.role === 'pengurus'}
-				<a
-					href="/admin/buat-acara"
-					class="rounded-lg bg-emerald-100 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-200"
-				>
-					+ Buat Acara
-				</a>
-			{/if}
+<div class="space-y-6">
+	<div
+		class="flex items-center justify-between rounded-2xl border border-emerald-100 bg-white p-8 shadow-sm"
+	>
+		<div>
+			<h1 class="text-3xl font-bold text-gray-900">
+				Halo, {profile?.full_name ?? data.session?.user?.user_metadata?.full_name ?? 'Kawan'}! 👋
+			</h1>
+			<p class="mt-2 text-gray-500">
+				Selamat datang di Nexus, portal utama keanggotaan dan kegiatan.
+			</p>
 		</div>
 
-		{#if events.length === 0}
-			<div
-				class="rounded-xl border border-gray-100 bg-white p-8 text-center text-gray-500 shadow-sm"
+		<div class="hidden md:block">
+			{#if !profile || profile.role === 'guest'}
+				<span
+					class="rounded-lg border border-gray-200 bg-gray-100 px-4 py-2 font-semibold text-gray-600"
+					>Tamu</span
+				>
+			{:else if profile.role === 'pending_approval'}
+				<span
+					class="rounded-lg border border-amber-200 bg-amber-100 px-4 py-2 font-semibold text-amber-700"
+					>Menunggu Persetujuan</span
+				>
+			{:else if profile.role === 'pengurus'}
+				<span
+					class="rounded-lg border border-emerald-200 bg-emerald-100 px-4 py-2 font-semibold text-emerald-700"
+					>Pengurus</span
+				>
+			{:else}
+				<span
+					class="rounded-lg border border-blue-200 bg-blue-100 px-4 py-2 font-semibold text-blue-700"
+					>Anggota</span
+				>
+			{/if}
+		</div>
+	</div>
+
+	{#if !profile || profile.role === 'guest'}
+		<div class="rounded-r-xl border-l-4 border-amber-500 bg-amber-50 p-6">
+			<h3 class="text-lg font-bold text-amber-800">Selamat Datang, Calon Anggota!</h3>
+			<p class="mt-1 mb-4 text-amber-700">
+				Akun Google kamu sudah terhubung. Sekarang, silakan lengkapi data mahasiswa kamu agar bisa
+				bergabung dengan kegiatan UKM CE.
+			</p>
+			<a
+				href="/join"
+				class="inline-block rounded-lg bg-amber-500 px-6 py-2 font-semibold text-white transition hover:bg-amber-600"
 			>
-				Belum ada jadwal kajian dalam waktu dekat.
-			</div>
-		{:else}
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-				{#each events as event}
-					<div class="flex flex-col rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-						<div class="mb-4 flex items-start justify-between">
-							<h3 class="text-lg font-bold text-gray-800">{event.title}</h3>
-							{#if event.is_public}
-								<span class="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700"
-									>Umum</span
-								>
-							{:else}
-								<span
-									class="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700"
-									>Internal CE</span
-								>
-							{/if}
-						</div>
+				Lengkapi Data & Daftar
+			</a>
+		</div>
+	{:else if profile.role === 'pending_approval'}
+		<div class="rounded-r-xl border-l-4 border-blue-500 bg-blue-50 p-6">
+			<h3 class="text-lg font-bold text-blue-800">Sedang Diverifikasi ⏳</h3>
+			<p class="mt-1 text-blue-700">
+				Sabar ya! Pengurus sedang mengecek data kamu. Kami akan segera mengaktifkan fitur penuh
+				setelah akunmu disetujui.
+			</p>
+		</div>
+	{:else}
+		<div class="mb-4">
+			<h2 class="flex items-end justify-between text-xl font-bold text-gray-800">
+				Kegiatan Terdekat
+				<a href="/events" class="text-sm font-medium text-emerald-600 hover:underline"
+					>Lihat Semua &rarr;</a
+				>
+			</h2>
+		</div>
 
-						<p class="mb-4 flex-grow text-sm text-gray-600">{event.description}</p>
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+			{#each events as acara}
+				{@const isRegistered = myRegisteredIds.includes(acara.id)}
 
-						<div
-							class="mb-6 rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-500"
+				<div
+					class="relative flex flex-col overflow-hidden rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm transition hover:shadow-md"
+				>
+					<div class="mb-4 flex items-start justify-between">
+						<span
+							class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold tracking-wider text-emerald-700 uppercase"
 						>
-							📅 {new Date(event.date_time).toLocaleDateString('id-ID', {
-								weekday: 'long',
-								year: 'numeric',
-								month: 'long',
-								day: 'numeric'
-							})}<br />
-							⏰ {new Date(event.date_time).toLocaleTimeString('id-ID', {
-								hour: '2-digit',
-								minute: '2-digit'
-							})} WIB
-						</div>
+							{acara.tipe_kegiatan.replace('_', ' ')}
+						</span>
 
-						{#if profile?.role !== 'guest' || event.is_public}
-							<button
-								onclick={() => daftarAcara(event.id)}
-								class="w-full rounded-lg bg-gray-900 py-2 font-semibold text-white transition-colors hover:bg-gray-800"
+						{#if isRegistered}
+							<span
+								class="rounded bg-emerald-100 px-2 py-1 text-[10px] font-bold text-emerald-600 uppercase"
+								>Terdaftar</span
 							>
-								Daftar Sekarang
-							</button>
-						{:else}
-							<div class="rounded-lg bg-red-50 p-2 text-center text-sm font-medium text-red-500">
-								Hanya Anggota Resmi
-							</div>
 						{/if}
 					</div>
-				{/each}
-			</div>
-		{/if}
-	</div>
-{/if}
+
+					<h3 class="mb-2 text-xl leading-tight font-bold text-gray-900">{acara.title}</h3>
+
+					<div class="mb-4 flex items-center gap-2 text-sm text-gray-500">
+						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+							><path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+							></path></svg
+						>
+						{new Date(acara.date_time).toLocaleDateString('id-ID', {
+							weekday: 'short',
+							day: 'numeric',
+							month: 'short'
+						})}
+					</div>
+
+					<p class="mb-6 line-clamp-2 flex-grow text-sm text-gray-600">{acara.description}</p>
+
+					<a
+						href="/events/{acara.id}"
+						class="block w-full rounded-xl py-2.5 text-center font-bold transition
+            {isRegistered
+							? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+							: 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-700'}"
+					>
+						{isRegistered ? 'Lihat Detail' : 'Daftar Sekarang'}
+					</a>
+				</div>
+			{:else}
+				<div
+					class="col-span-full bg-gray-50 border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-500"
+				>
+					Belum ada jadwal kegiatan mendatang.
+				</div>
+			{/each}
+		</div>
+	{/if}
+</div>
