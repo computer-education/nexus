@@ -3,8 +3,8 @@ import { env } from '$env/dynamic/public';
 import { redirect, type Handle } from '@sveltejs/kit';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const supabaseUrl = env.PUBLIC_SUPABASE_URL || '';
-	const supabaseKey = env.PUBLIC_SUPABASE_ANON_KEY || '';
+	const supabaseUrl = event.platform?.env?.PUBLIC_SUPABASE_URL || '';
+	const supabaseKey = event.platform?.env?.PUBLIC_SUPABASE_ANON_KEY || '';
 
 	if (!supabaseUrl || !supabaseKey) {
 		console.error('❌ CLOUDFLARE ERROR: Env vars kosong di runtime!');
