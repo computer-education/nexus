@@ -3,8 +3,17 @@ import { env } from '$env/dynamic/public';
 import { redirect, type Handle } from '@sveltejs/kit';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const supabaseUrl = env.PUBLIC_SUPABASE_URL;
-	const supabaseKey = env.PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+	const supabaseUrl = env.PUBLIC_SUPABASE_URL || '';
+	const supabaseKey = env.PUBLIC_SUPABASE_ANON_KEY || '';
+
+	if (!supabaseUrl || !supabaseKey) {
+		console.error('❌ CLOUDFLARE ERROR: Env vars kosong di runtime!');
+	}
+
+	const allCookies = event.cookies.getAll();
+	if (allCookies.length === 0) {
+		console.warn('⚠️ WARNING: Tidak ada cookie yang diterima oleh server.');
+	}
 
 	event.locals.supabase = createServerClient(supabaseUrl, supabaseKey, {
 		cookies: {
