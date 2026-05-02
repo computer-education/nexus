@@ -32,7 +32,7 @@ Pastikan mesin kamu sudah terinstal:
 
 1. **Clone repositori ini**
 ```bash
-   git clone [https://github.com/hamadaharu/nexus.git](https://github.com/hamadaharu/nexus.git)
+   git clone [https://github.com/computer-education/nexus.git](https://github.com/computer-education/nexus.git)
    cd nexus
 ```
 
